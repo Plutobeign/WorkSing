@@ -113,7 +113,7 @@ export default function Player() {
         </div>
 
         {/* Size label */}
-        <p style={s.sizeLabel}>{size.width} × {size.height}px — {mode} mode</p>
+        
       </div>
 
     </div>
