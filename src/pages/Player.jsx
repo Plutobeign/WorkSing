@@ -18,7 +18,7 @@ export default function Player() {
     if (!isLoggedIn()) navigate('/')
   }, [navigate])
 
-  // Cycle modes with Ctrl+Shift+W
+  // Cycle modes with Ctrl+Shift+L
   const cycleMode = useCallback(() => {
     setMode(prev => {
       const next = MODES[(MODES.indexOf(prev) + 1) % MODES.length]
@@ -29,7 +29,7 @@ export default function Player() {
 
   useEffect(() => {
     const onKey = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') {
+      if (e.ctrlKey && e.shiftKey && e.key === 'L') {
         e.preventDefault()
         cycleMode()
       }
@@ -79,7 +79,7 @@ export default function Player() {
 
       {/* Widget preview area */}
       <div style={s.stage}>
-        <p style={s.hint}>Ctrl+Shift+W to cycle modes</p>
+        <p style={s.hint}>Ctrl+Shift+L to cycle modes</p>
 
         {/* Widget container — matches real overlay dimensions */}
         <div style={{
