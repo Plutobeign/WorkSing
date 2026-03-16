@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { spotifyFetch, clearTokens } from '../utils/spotifyAuth'
 
-const POLL_INTERVAL = 1000      // ms between API calls
-const RETRY_INTERVAL = 5000     // ms between retries when connection lost
+const POLL_NORMAL   = 1000   // ms — steady state
+const POLL_FAST     = 200    // ms — right after track change or reconnect
+const FAST_DURATION = 4000   // ms — how long to stay in fast mode
+const RETRY_DELAY   = 3000   // ms — retry when connection is lost
 
 export function useNowPlaying(navigate) {
   const [state, setState] = useState({
@@ -17,32 +19,41 @@ export function useNowPlaying(navigate) {
     connectionLost: false,
   })
 
-  // Refs so callbacks always see latest values without re-creating
-  const stateRef        = useRef(state)
   const rafRef          = useRef(null)
   const pollTimerRef    = useRef(null)
   const lastFrameRef    = useRef(null)
-  const isPlayingRef    = useRef(false)
-  const connectionRef   = useRef(false)
   const mountedRef      = useRef(true)
+  const fastModeRef     = useRef(false)
+  const fastModeTimer   = useRef(null)
+  const lastTrackIdRef  = useRef(null)
+  const isPlayingRef    = useRef(false)
+  const connLostRef     = useRef(false)
 
-  stateRef.current    = state
-  isPlayingRef.current = state.isPlaying
-  connectionRef.current = state.connectionLost
+  // ── Enter fast polling mode ───────────────────────────────
+  const enterFastMode = useCallback(() => {
+    fastModeRef.current = true
+    clearTimeout(fastModeTimer.current)
+    fastModeTimer.current = setTimeout(() => {
+      fastModeRef.current = false
+    }, FAST_DURATION)
+  }, [])
 
-  // ── Smooth RAF ticker ─────────────────────────────────────
-  // Increments progressMs every frame while playing
-  // so lyrics feel smooth instead of jumping every second
+  // ── RAF smooth ticker ─────────────────────────────────────
+  const stopTicker = useCallback(() => {
+    if (rafRef.current) {
+      cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
+    }
+    lastFrameRef.current = null
+  }, [])
+
   const startTicker = useCallback(() => {
     if (rafRef.current) return
     lastFrameRef.current = performance.now()
 
     const tick = (now) => {
       if (!mountedRef.current) return
-      if (!isPlayingRef.current) {
-        rafRef.current = null
-        return
-      }
+      if (!isPlayingRef.current) { rafRef.current = null; return }
       const delta = now - (lastFrameRef.current || now)
       lastFrameRef.current = now
       setState(prev => ({
@@ -55,40 +66,25 @@ export function useNowPlaying(navigate) {
     rafRef.current = requestAnimationFrame(tick)
   }, [])
 
-  const stopTicker = useCallback(() => {
-    if (rafRef.current) {
-      cancelAnimationFrame(rafRef.current)
-      rafRef.current = null
-    }
-    lastFrameRef.current = null
-  }, [])
-
   // ── API poll ──────────────────────────────────────────────
   const poll = useCallback(async () => {
     try {
       const res = await spotifyFetch('/me/player/currently-playing')
 
-      // 401 — token dead, kick to login
       if (res.status === 401) {
         clearTokens()
         navigate('/')
         return
       }
 
-      // 204 — nothing playing
       if (res.status === 204) {
         stopTicker()
+        isPlayingRef.current = false
         setState(prev => ({
           ...prev,
-          isPlaying:      false,
-          trackName:      null,
-          artistName:     null,
-          albumName:      null,
-          albumArt:       null,
-          trackId:        null,
-          progressMs:     0,
-          durationMs:     0,
-          connectionLost: false,
+          isPlaying: false, trackName: null, artistName: null,
+          albumName: null, albumArt: null, trackId: null,
+          progressMs: 0, durationMs: 0, connectionLost: false,
         }))
         return
       }
@@ -98,9 +94,9 @@ export function useNowPlaying(navigate) {
       const data = await res.json()
       if (!data || !data.item) return
 
-      const track    = data.item
-      const trackId  = track.id
-      const isPlaying = data.is_playing
+      const track      = data.item
+      const trackId    = track.id
+      const isPlaying  = data.is_playing
       const progressMs = data.progress_ms ?? 0
       const durationMs = track.duration_ms ?? 0
       const trackName  = track.name
@@ -108,39 +104,50 @@ export function useNowPlaying(navigate) {
       const albumName  = track.album?.name ?? ''
       const albumArt   = track.album?.images?.[0]?.url ?? null
 
+      // Track changed — enter fast mode for snappy detection
+      if (trackId !== lastTrackIdRef.current) {
+        lastTrackIdRef.current = trackId
+        enterFastMode()
+      }
+
+      // Just recovered from connection loss — enter fast mode
+      if (connLostRef.current) {
+        connLostRef.current = false
+        enterFastMode()
+      }
+
+      isPlayingRef.current = isPlaying
+
       setState(prev => ({
         ...prev,
-        trackName,
-        artistName,
-        albumName,
-        albumArt,
-        progressMs,   // re-sync from API on every poll
-        durationMs,
-        isPlaying,
-        trackId,
+        trackName, artistName, albumName, albumArt,
+        progressMs, durationMs, isPlaying, trackId,
         connectionLost: false,
       }))
 
-      // Start or stop the RAF ticker based on play state
-      if (isPlaying) {
-        startTicker()
-      } else {
-        stopTicker()
-      }
+      if (isPlaying) startTicker()
+      else stopTicker()
 
-    } catch (err) {
-      // Network error — show reconnecting state
-      if (!connectionRef.current) {
-        setState(prev => ({ ...prev, connectionLost: true, isPlaying: false }))
+    } catch {
+      // Network error
+      if (!connLostRef.current) {
+        connLostRef.current = true
+        isPlayingRef.current = false
         stopTicker()
+        setState(prev => ({ ...prev, connectionLost: true, isPlaying: false }))
       }
     }
-  }, [navigate, startTicker, stopTicker])
+  }, [navigate, startTicker, stopTicker, enterFastMode])
 
   // ── Polling loop ──────────────────────────────────────────
   const schedulePoll = useCallback(() => {
     clearTimeout(pollTimerRef.current)
-    const interval = connectionRef.current ? RETRY_INTERVAL : POLL_INTERVAL
+
+    let interval
+    if (connLostRef.current)    interval = RETRY_DELAY
+    else if (fastModeRef.current) interval = POLL_FAST
+    else                          interval = POLL_NORMAL
+
     pollTimerRef.current = setTimeout(async () => {
       if (!mountedRef.current) return
       await poll()
@@ -149,19 +156,20 @@ export function useNowPlaying(navigate) {
   }, [poll])
 
   // ── Visibility change ─────────────────────────────────────
-  // Pause polling when tab is hidden to save API calls
   useEffect(() => {
     const onVisibility = () => {
       if (document.hidden) {
         clearTimeout(pollTimerRef.current)
         stopTicker()
       } else {
+        // Coming back to tab — enter fast mode immediately
+        enterFastMode()
         poll().then(schedulePoll)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
-  }, [poll, schedulePoll, stopTicker])
+  }, [poll, schedulePoll, stopTicker, enterFastMode])
 
   // ── Mount / unmount ───────────────────────────────────────
   useEffect(() => {
@@ -171,6 +179,7 @@ export function useNowPlaying(navigate) {
     return () => {
       mountedRef.current = false
       clearTimeout(pollTimerRef.current)
+      clearTimeout(fastModeTimer.current)
       stopTicker()
     }
   }, [poll, schedulePoll, stopTicker])
