@@ -24,90 +24,89 @@ function getThemeBg(themeId, albumColors) {
   return THEME_BG[themeId] || THEME_BG.mountains
 }
 
-function buildFullHTML({ currentLine, prevLine, nextLine, trackName, artistName,
-                         albumArt, progressMs, durationMs, status, themeId, albumColors, mode }) {
-  const pct = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
-  const bg  = getThemeBg(themeId, albumColors)
+function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
+                     albumArt, progressMs, durationMs, status, themeId,
+                     albumColors, mode, opacity }) {
+  const pct      = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
+  const bg       = getThemeBg(themeId, albumColors)
+  const isLight  = LIGHT_THEMES.has(themeId)
   const bgOpacity = (opacity ?? 88) / 100
-  const isLight = LIGHT_THEMES.has(themeId)
+  const br       = mode === 'pill' ? '22px' : '14px'
 
   const lyric = status === 'synced' ? (currentLine || '♪')
     : status === 'loading' ? 'Loading…'
     : status === 'notFound' ? (trackName || '—')
     : (trackName || 'Nothing playing')
 
-  const prev = status === 'synced' ? (prevLine || '') : ''
-  const next = status === 'synced' ? (nextLine || '') : ''
+  const prev = status === 'synced' ? (prevLine || '\u00a0') : '\u00a0'
+  const next = status === 'synced' ? (nextLine || '\u00a0') : '\u00a0'
 
   const artHtml = albumArt
     ? `<img id="ws-art" src="${albumArt}" style="width:26px;height:26px;border-radius:6px;object-fit:cover;flex-shrink:0" crossorigin="anonymous">`
     : `<div style="width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,0.1);flex-shrink:0"></div>`
 
-  const br = mode === 'pill' ? '22px' : '14px'
+  const darkOverlay = isLight
+    ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1;border-radius:${br}"></div>`
+    : ''
+
+  const blurDiv = `<div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2;border-radius:${br}"></div>`
+
+  let content = ''
 
   if (mode === 'pill') {
-    return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};border-radius:${br}"></div>
-    ${isLight ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);border-radius:${br};z-index:1"></div>` : ''}
-    <div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2;border-radius:${br}"></div>
-    <div style="position:absolute;inset:0;z-index:3;display:flex;align-items:center;gap:9px;padding:0 14px">
-      <div style="width:6px;height:6px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div>
-      <span id="ws-lyric" style="flex:1;font-size:14px;font-weight:600;color:rgba(255,255,255,0.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.02em;text-shadow:0 1px 6px rgba(0,0,0,0.8);-webkit-font-smoothing:antialiased">${lyric}</span>
-      <span style="font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;flex-shrink:0">${artistName || ''}</span>
-    </div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4;border-radius:0 0 ${br} ${br}">
-      <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
-    </div>`
-  }
-
-  if (mode === 'compact') {
-    return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity}"></div>
-    ${isLight ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1"></div>` : ''}
-    <div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2"></div>
-    <div style="position:absolute;inset:0;z-index:3;display:flex;align-items:center;gap:10px;padding:0 14px">
-      ${artHtml}
-      <div style="flex:1;min-width:0">
-        <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em">${prev || (trackName || '')}</p>
-        <p id="ws-lyric" style="margin:0;font-size:17px;font-weight:600;color:rgba(255,255,255,0.97);letter-spacing:-0.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,0.8);-webkit-font-smoothing:antialiased">${lyric}</p>
+    content = `
+      <div style="position:absolute;inset:0;z-index:3;display:flex;align-items:center;gap:9px;padding:0 14px">
+        <div style="width:6px;height:6px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div>
+        <span id="ws-lyric" style="flex:1;font-size:14px;font-weight:600;color:rgba(255,255,255,0.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.02em;text-shadow:0 1px 6px rgba(0,0,0,0.9);-webkit-font-smoothing:antialiased">${lyric}</span>
+        <span style="font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;flex-shrink:0">${artistName || ''}</span>
       </div>
-      <span style="font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis">${artistName || ''}</span>
-    </div>
-    <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4">
-      <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
-    </div>`
-  }
+      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4;border-radius:0 0 22px 22px">
+        <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
+      </div>`
 
-  // Full mode — matches main player exactly
-  return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity}"></div>
-    ${isLight ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1"></div>` : ''}
-    <div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2"></div>
-    <div style="position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;padding:10px 14px 0">
-
-      <!-- Track info bar -->
-      <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;margin-bottom:4px">
+  } else if (mode === 'compact') {
+    content = `
+      <div style="position:absolute;inset:0;z-index:3;display:flex;align-items:center;gap:10px;padding:0 14px">
         ${artHtml}
         <div style="flex:1;min-width:0">
-          <p style="margin:0;font-size:11px;font-weight:500;color:rgba(255,255,255,0.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.01em">${trackName || '—'}</p>
-          <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${artistName || ''}</p>
+          <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${prev}</p>
+          <p id="ws-lyric" style="margin:0;font-size:17px;font-weight:600;color:rgba(255,255,255,0.97);letter-spacing:-0.025em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 6px rgba(0,0,0,0.9);-webkit-font-smoothing:antialiased">${lyric}</p>
         </div>
-        <div style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div>
+        <span style="font-size:10px;color:rgba(255,255,255,0.3);white-space:nowrap;flex-shrink:0;max-width:90px;overflow:hidden;text-overflow:ellipsis">${artistName || ''}</span>
       </div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4">
+        <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
+      </div>`
 
-      <!-- Lyrics — 3 lines, center aligned, same as main player -->
-      <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5px;padding:0 6px">
-        <p id="ws-prev" style="margin:0;font-size:12px;font-weight:400;color:rgba(255,255,255,0.28);letter-spacing:-0.01em;line-height:1.4;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${prev || '\u00a0'}</p>
-        <p id="ws-lyric" style="margin:0;font-size:20px;font-weight:600;color:rgba(255,255,255,0.97);letter-spacing:-0.025em;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,0.8);-webkit-font-smoothing:antialiased;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lyric}</p>
-        <p id="ws-next" style="margin:0;font-size:12px;font-weight:400;color:rgba(255,255,255,0.28);letter-spacing:-0.01em;line-height:1.4;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${next || '\u00a0'}</p>
+  } else {
+    // Full mode
+    content = `
+      <div style="position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;padding:10px 14px 0">
+        <div style="display:flex;align-items:center;gap:9px;flex-shrink:0;margin-bottom:4px">
+          ${artHtml}
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-size:11px;font-weight:500;color:rgba(255,255,255,0.88);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${trackName || '—'}</p>
+            <p style="margin:0;font-size:10px;color:rgba(255,255,255,0.4)">${artistName || ''}</p>
+          </div>
+          <div style="width:7px;height:7px;border-radius:50%;background:#1D9E75;flex-shrink:0"></div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5px;padding:0 6px">
+          <p id="ws-prev" style="margin:0;font-size:12px;font-weight:400;color:rgba(255,255,255,0.28);letter-spacing:-0.01em;line-height:1.4;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${prev}</p>
+          <p id="ws-lyric" style="margin:0;font-size:20px;font-weight:600;color:rgba(255,255,255,0.97);letter-spacing:-0.025em;line-height:1.2;text-shadow:0 1px 8px rgba(0,0,0,0.9);-webkit-font-smoothing:antialiased;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${lyric}</p>
+          <p id="ws-next" style="margin:0;font-size:12px;font-weight:400;color:rgba(255,255,255,0.28);letter-spacing:-0.01em;line-height:1.4;width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${next}</p>
+        </div>
       </div>
+      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.1);z-index:4">
+        <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
+      </div>`
+  }
 
-    </div>
-
-    <!-- Progress bar -->
-    <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.1);z-index:4">
-      <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
-    </div>`
+  return `
+    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity};border-radius:${br}"></div>
+    ${darkOverlay}
+    ${blurDiv}
+    ${content}
+  `
 }
 
 export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, opacity = 88) {
@@ -115,7 +114,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
   const payloadRef = useRef({})
   const { themeId, albumColors } = useTheme()
 
-  // Keep payloadRef always up to date
+  // Always keep payloadRef current
   useEffect(() => {
     payloadRef.current = {
       currentLine:  currentLineData.currentLine,
@@ -131,7 +130,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
     }
   })
 
-  // Update PiP DOM on every relevant change
+  // Push updates to PiP DOM on every change
   useEffect(() => {
     const pip = pipRef.current
     if (!pip || pip.closed) return
@@ -144,7 +143,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
       : p.status === 'notFound' ? (p.trackName || '—')
       : (p.trackName || 'Nothing playing')
 
-    // Lyric with fade animation on change
+    // Lyric with fade on change
     const lyricEl = pip.document.getElementById('ws-lyric')
     if (lyricEl && lyricEl.textContent !== lyric) {
       lyricEl.style.transition = 'opacity 0.15s ease, transform 0.2s ease'
@@ -159,7 +158,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
       }, 120)
     }
 
-    // Prev / next lines
+    // Prev / next
     const prevEl = pip.document.getElementById('ws-prev')
     const nextEl = pip.document.getElementById('ws-next')
     if (prevEl) prevEl.textContent = p.status === 'synced' ? (p.prevLine || '\u00a0') : '\u00a0'
@@ -169,11 +168,14 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
     const progEl = pip.document.getElementById('ws-prog')
     if (progEl) progEl.style.width = `${pct}%`
 
-    // Background on theme change
+    // Background + opacity
     const bgEl = pip.document.getElementById('ws-bg')
-    if (bgEl) { bgEl.style.background = getThemeBg(p.themeId, p.albumColors); bgEl.style.opacity = String((p.opacity ?? 88) / 100) }
+    if (bgEl) {
+      bgEl.style.background = getThemeBg(p.themeId, p.albumColors)
+      bgEl.style.opacity = String((p.opacity ?? 88) / 100)
+    }
 
-    // Album art on track change
+    // Album art
     const artEl = pip.document.getElementById('ws-art')
     if (artEl && p.albumArt && artEl.src !== p.albumArt) artEl.src = p.albumArt
 
@@ -190,11 +192,10 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
 
   const openOverlay = useCallback(async () => {
     if (!('documentPictureInPicture' in window)) {
-      alert('Floating overlay needs Chrome 116+.\nPlease open WorkSing in Chrome.')
+      alert('Floating overlay needs Chrome 116+.\nOpen WorkSing in Chrome.')
       return
     }
 
-    // Toggle off if already open
     if (pipRef.current && !pipRef.current.closed) {
       pipRef.current.close()
       pipRef.current = null
@@ -217,24 +218,25 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
       link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap'
       pip.document.head.appendChild(link)
 
-      // Reset all browser default styles in PiP window
+      // Full CSS reset — kills the white background
       const style = pip.document.createElement('style')
       style.textContent = `
-        *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
         html, body {
+          margin: 0; padding: 0;
           width: 100%; height: 100%;
           overflow: hidden;
-          background: transparent;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+          background: transparent !important;
+          font-family: 'Inter', -apple-system, sans-serif;
           -webkit-font-smoothing: antialiased;
         }
+        * { box-sizing: border-box; }
       `
       pip.document.head.appendChild(style)
 
-      pip.document.body.style.cssText = 'position:relative;width:100%;height:100%;overflow:hidden;'
+      pip.document.body.style.cssText =
+        'position:relative;width:100%;height:100%;overflow:hidden;background:transparent;'
 
-      // Render full content
-      pip.document.body.innerHTML = buildFullHTML(payloadRef.current)
+      pip.document.body.innerHTML = buildHTML(payloadRef.current)
 
       pip.addEventListener('pagehide', () => { pipRef.current = null })
 
