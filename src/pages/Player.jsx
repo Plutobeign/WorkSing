@@ -1,13 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isLoggedIn, clearTokens } from '../utils/spotifyAuth'
-import { useNowPlaying }   from '../hooks/useNowPlaying'
-import { useLyrics }       from '../hooks/useLyrics'
-import { useCurrentLine }  from '../hooks/useCurrentLine'
+import { useNowPlaying }  from '../hooks/useNowPlaying'
+import { useLyrics }      from '../hooks/useLyrics'
+import { useCurrentLine } from '../hooks/useCurrentLine'
 import PlayerWidget, { MODE_SIZES } from '../components/PlayerWidget'
-import ThemeBackground     from '../themes/ThemeBackground'
-import { useTheme }        from '../context/ThemeContext'
-import { THEMES }          from '../context/ThemeContext'
+import ThemeBackground    from '../themes/ThemeBackground'
+import { useTheme, THEMES } from '../context/ThemeContext'
 
 const MODES = ['full', 'compact', 'pill']
 
@@ -26,45 +25,51 @@ const SWATCH_BG = {
 export default function Player() {
   const navigate = useNavigate()
   const { themeId, setTheme, activeTheme } = useTheme()
-
-  const [mode, setMode] = useState(
-    () => localStorage.getItem('ws-mode') || 'full'
-  )
+  const [mode, setMode] = useState(() => localStorage.getItem('ws-mode') || 'full')
+  const [themeOpen, setThemeOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
   useEffect(() => {
     if (!isLoggedIn()) navigate('/')
   }, [navigate])
 
-  const cycleMode = useCallback(() => {
-    setMode(prev => {
-      const next = MODES[(MODES.indexOf(prev) + 1) % MODES.length]
-      localStorage.setItem('ws-mode', next)
-      return next
-    })
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setThemeOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const cycleTheme = useCallback(() => {
-    const ids = THEMES.map(t => t.id)
-    const next = ids[(ids.indexOf(themeId) + 1) % ids.length]
-    setTheme(next)
-  }, [themeId, setTheme])
-
+  // Keyboard shortcuts — Ctrl+Alt to avoid Chrome conflicts
   useEffect(() => {
     const onKey = (e) => {
-      if (e.ctrlKey && e.shiftKey && e.key === 'W') { e.preventDefault(); cycleMode() }
-      if (e.ctrlKey && e.shiftKey && e.key === 'T') { e.preventDefault(); cycleTheme() }
+      if (e.ctrlKey && e.altKey && e.key === 'w') {
+        e.preventDefault()
+        setMode(prev => {
+          const next = MODES[(MODES.indexOf(prev) + 1) % MODES.length]
+          localStorage.setItem('ws-mode', next)
+          return next
+        })
+      }
+      if (e.ctrlKey && e.altKey && e.key === 't') {
+        e.preventDefault()
+        const ids = THEMES.map(t => t.id)
+        setTheme(ids[(ids.indexOf(themeId) + 1) % ids.length])
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [cycleMode, cycleTheme])
+  }, [themeId, setTheme])
 
   const nowPlaying = useNowPlaying(navigate)
   const { trackName, artistName, albumName, albumArt,
           progressMs, durationMs, isPlaying, trackId, connectionLost } = nowPlaying
 
-  const { lines, plainLyrics, status: lyricsStatus } = useLyrics(
-    trackName, artistName, albumName, trackId
-  )
+  const { lines, status: lyricsStatus } = useLyrics(trackName, artistName, albumName, trackId)
   const { prevLine, currentLine, nextLine } = useCurrentLine(lines, progressMs)
 
   const size = MODE_SIZES[mode]
@@ -73,13 +78,16 @@ export default function Player() {
   return (
     <div style={s.page}>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={s.header}>
         <div style={s.logoRow}>
           <div style={s.logoDot} />
           <span style={s.wordmark}>WorkSing</span>
         </div>
+
         <div style={s.headerRight}>
+
+          {/* Mode buttons */}
           <div style={s.modeBtns}>
             {MODES.map(m => (
               <button key={m}
@@ -88,16 +96,46 @@ export default function Player() {
               >{m}</button>
             ))}
           </div>
+
+          {/* Theme dropdown */}
+          <div style={s.dropWrap} ref={dropdownRef}>
+            <button style={s.themeBtn} onClick={() => setThemeOpen(o => !o)}>
+              <div style={{ ...s.themeDot, background: SWATCH_BG[themeId] }} />
+              <span>{activeTheme?.name || 'Theme'}</span>
+              <span style={s.caret}>{themeOpen ? '▲' : '▼'}</span>
+            </button>
+
+            {themeOpen && (
+              <div style={s.dropdown}>
+                {THEMES.map(t => (
+                  <button key={t.id}
+                    style={{
+                      ...s.dropItem,
+                      ...(themeId === t.id ? s.dropItemActive : {}),
+                    }}
+                    onClick={() => { setTheme(t.id); setThemeOpen(false) }}
+                  >
+                    <div style={{ ...s.dropSwatch, background: SWATCH_BG[t.id] }} />
+                    <span>{t.name}</span>
+                    {themeId === t.id && <span style={s.checkmark}>✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Disconnect */}
           <button style={s.disconnectBtn} onClick={() => { clearTokens(); navigate('/') }}>
             Disconnect
           </button>
+
         </div>
       </div>
 
+      {/* ── Stage ── */}
       <div style={s.stage}>
-        <p style={s.hint}>Ctrl+Shift+W — mode &nbsp;·&nbsp; Ctrl+Shift+T — theme</p>
+        <p style={s.hint}>Ctrl+Alt+W — mode &nbsp;·&nbsp; Ctrl+Alt+T — theme</p>
 
-        {/* Widget */}
         <div style={{
           ...s.widgetWrap,
           width: size.width,
@@ -105,6 +143,12 @@ export default function Player() {
           borderRadius: mode === 'pill' ? 22 : 14,
         }}>
           <ThemeBackground albumArt={albumArt} />
+
+          {/* Extra dark overlay for light themes so lyrics stay readable */}
+          {isLightTheme && (
+            <div style={s.lightThemeOverlay} />
+          )}
+
           <div style={s.blurLayer} />
           <div style={s.widgetInner}>
             <PlayerWidget
@@ -119,29 +163,6 @@ export default function Player() {
           </div>
         </div>
 
-        {/* Theme switcher */}
-        <div style={s.themeRow}>
-          {THEMES.map(t => (
-            <button key={t.id}
-              onClick={() => setTheme(t.id)}
-              title={t.name}
-              style={{
-                ...s.swatch,
-                background: SWATCH_BG[t.id],
-                outline: themeId === t.id ? '2px solid #1D9E75' : '2px solid transparent',
-                outlineOffset: 2,
-              }}
-            >
-              <span style={{
-                fontSize: 9, fontFamily: "'Inter',sans-serif", fontWeight: 500,
-                color: t.textDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.85)',
-                textShadow: t.textDark ? 'none' : '0 1px 3px rgba(0,0,0,0.5)',
-                whiteSpace: 'nowrap',
-              }}>{t.name}</span>
-            </button>
-          ))}
-        </div>
-
       </div>
     </div>
   )
@@ -153,16 +174,29 @@ const s = {
   logoRow: { display: 'flex', alignItems: 'center', gap: 8 },
   logoDot: { width: 8, height: 8, borderRadius: '50%', background: '#1D9E75' },
   wordmark: { fontFamily: "'Inter',sans-serif", fontSize: 16, fontWeight: 600, letterSpacing: '-0.03em', color: '#fff' },
-  headerRight: { display: 'flex', alignItems: 'center', gap: 12 },
+  headerRight: { display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   modeBtns: { display: 'flex', gap: 4 },
   modeBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', textTransform: 'capitalize' },
   modeBtnActive: { background: 'rgba(29,158,117,0.15)', border: '0.5px solid #1D9E75', color: '#1D9E75' },
+
+  dropWrap: { position: 'relative' },
+  themeBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' },
+  themeDot: { width: 12, height: 12, borderRadius: 3, flexShrink: 0 },
+  caret: { fontSize: 8, opacity: 0.5 },
+
+  dropdown: { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 180, background: '#16141a', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, overflow: 'hidden', zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' },
+  dropItem: { width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: "'Inter',sans-serif", fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'left' },
+  dropItemActive: { background: 'rgba(29,158,117,0.12)', color: '#fff' },
+  dropSwatch: { width: 20, height: 14, borderRadius: 4, flexShrink: 0 },
+  checkmark: { marginLeft: 'auto', color: '#1D9E75', fontSize: 11 },
+
   disconnectBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.25)', padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.08)', background: 'transparent', cursor: 'pointer' },
-  stage: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 20 },
-  hint: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.18)' },
+
+  stage: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
+  hint: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.15)' },
+
   widgetWrap: { position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' },
-  blurLayer: { position: 'absolute', inset: 0, backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)' },
-  widgetInner: { position: 'absolute', inset: 0 },
-  themeRow: { display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center', maxWidth: 520 },
-  swatch: { height: 30, borderRadius: 8, padding: '0 10px', border: 'none', cursor: 'pointer', transition: 'outline 0.15s, transform 0.1s', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  lightThemeOverlay: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1 },
+  blurLayer: { position: 'absolute', inset: 0, backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 2 },
+  widgetInner: { position: 'absolute', inset: 0, zIndex: 3 },
 }
