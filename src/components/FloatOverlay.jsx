@@ -28,6 +28,7 @@ function buildFullHTML({ currentLine, prevLine, nextLine, trackName, artistName,
                          albumArt, progressMs, durationMs, status, themeId, albumColors, mode }) {
   const pct = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
   const bg  = getThemeBg(themeId, albumColors)
+  const bgOpacity = (opacity ?? 88) / 100
   const isLight = LIGHT_THEMES.has(themeId)
 
   const lyric = status === 'synced' ? (currentLine || '♪')
@@ -61,7 +62,7 @@ function buildFullHTML({ currentLine, prevLine, nextLine, trackName, artistName,
 
   if (mode === 'compact') {
     return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg}"></div>
+    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity}"></div>
     ${isLight ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1"></div>` : ''}
     <div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2"></div>
     <div style="position:absolute;inset:0;z-index:3;display:flex;align-items:center;gap:10px;padding:0 14px">
@@ -79,7 +80,7 @@ function buildFullHTML({ currentLine, prevLine, nextLine, trackName, artistName,
 
   // Full mode — matches main player exactly
   return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg}"></div>
+    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity}"></div>
     ${isLight ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1"></div>` : ''}
     <div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2"></div>
     <div style="position:absolute;inset:0;z-index:3;display:flex;flex-direction:column;padding:10px 14px 0">
@@ -109,7 +110,7 @@ function buildFullHTML({ currentLine, prevLine, nextLine, trackName, artistName,
     </div>`
 }
 
-export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode) {
+export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, opacity = 88) {
   const pipRef     = useRef(null)
   const payloadRef = useRef({})
   const { themeId, albumColors } = useTheme()
@@ -126,7 +127,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode) {
       progressMs:   nowPlaying.progressMs,
       durationMs:   nowPlaying.durationMs,
       status:       lyricsData.status,
-      mode, themeId, albumColors,
+      mode, themeId, albumColors, opacity,
     }
   })
 
@@ -170,7 +171,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode) {
 
     // Background on theme change
     const bgEl = pip.document.getElementById('ws-bg')
-    if (bgEl) bgEl.style.background = getThemeBg(p.themeId, p.albumColors)
+    if (bgEl) { bgEl.style.background = getThemeBg(p.themeId, p.albumColors); bgEl.style.opacity = String((p.opacity ?? 88) / 100) }
 
     // Album art on track change
     const artEl = pip.document.getElementById('ws-art')
@@ -184,7 +185,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode) {
     nowPlaying.trackName,
     nowPlaying.albumArt,
     lyricsData.status,
-    themeId, albumColors,
+    themeId, albumColors, opacity,
   ])
 
   const openOverlay = useCallback(async () => {
