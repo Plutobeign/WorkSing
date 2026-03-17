@@ -3,7 +3,6 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
-// Global CSS animations injected here so they apply everywhere
 const style = document.createElement('style')
 style.textContent = `
   @keyframes pulse {
@@ -13,13 +12,25 @@ style.textContent = `
   @keyframes spin {
     to { transform: rotate(360deg); }
   }
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(6px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
   @keyframes shimmer {
     0%, 100% { opacity: 0.15; }
-    50%       { opacity: 0.3; }
+    50% { opacity: 0.35; }
+  }
+  @keyframes starTwinkle {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+  }
+  @keyframes waveMove {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-60px); }
+  }
+  @keyframes cloudDrift {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(30px); }
+  }
+  @keyframes petalSway {
+    0%, 100% { transform: rotate(-3deg); }
+    50% { transform: rotate(3deg); }
   }
 `
 document.head.appendChild(style)
