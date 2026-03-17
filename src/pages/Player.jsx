@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { isLoggedIn, clearTokens } from '../utils/spotifyAuth'
-import { useNowPlaying }  from '../hooks/useNowPlaying'
-import { useLyrics }      from '../hooks/useLyrics'
-import { useCurrentLine } from '../hooks/useCurrentLine'
+import { useNowPlaying }   from '../hooks/useNowPlaying'
+import { useLyrics }       from '../hooks/useLyrics'
+import { useCurrentLine }  from '../hooks/useCurrentLine'
 import PlayerWidget, { MODE_SIZES } from '../components/PlayerWidget'
-import ThemeBackground    from '../themes/ThemeBackground'
+import ThemeBackground     from '../themes/ThemeBackground'
 import { useTheme, THEMES } from '../context/ThemeContext'
+import { useFloatOverlay } from '../components/FloatOverlay'
 
 const MODES = ['full', 'compact', 'pill']
 
@@ -25,23 +26,22 @@ const SWATCH_BG = {
 export default function Player() {
   const navigate = useNavigate()
   const { themeId, setTheme, activeTheme } = useTheme()
-  const [mode, setMode] = useState(() => localStorage.getItem('ws-mode') || 'full')
+  const [mode, setMode]       = useState(() => localStorage.getItem('ws-mode') || 'full')
   const [themeOpen, setThemeOpen] = useState(false)
+  const [overlayOpen, setOverlayOpen] = useState(false)
   const dropdownRef = useRef(null)
 
   useEffect(() => {
     if (!isLoggedIn()) navigate('/')
   }, [navigate])
 
-  // Close dropdown when clicking outside
+  // Close dropdown on outside click
   useEffect(() => {
-    const handler = (e) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
-        setThemeOpen(false)
-      }
+    const h = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setThemeOpen(false)
     }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
   }, [])
 
   // Keyboard shortcuts — Ctrl+Alt to avoid Chrome conflicts
@@ -71,6 +71,23 @@ export default function Player() {
 
   const { lines, status: lyricsStatus } = useLyrics(trackName, artistName, albumName, trackId)
   const { prevLine, currentLine, nextLine } = useCurrentLine(lines, progressMs)
+
+  const lyricsData     = { status: lyricsStatus }
+  const currentLineData = { currentLine, prevLine, nextLine }
+
+  const { openOverlay, closeOverlay, isOpen } = useFloatOverlay(
+    nowPlaying, lyricsData, currentLineData, mode
+  )
+
+  const handleFloat = useCallback(() => {
+    if (isOpen()) {
+      closeOverlay()
+      setOverlayOpen(false)
+    } else {
+      openOverlay()
+      setOverlayOpen(true)
+    }
+  }, [isOpen, openOverlay, closeOverlay])
 
   const size = MODE_SIZES[mode]
   const isLightTheme = activeTheme?.textDark
@@ -104,15 +121,11 @@ export default function Player() {
               <span>{activeTheme?.name || 'Theme'}</span>
               <span style={s.caret}>{themeOpen ? '▲' : '▼'}</span>
             </button>
-
             {themeOpen && (
               <div style={s.dropdown}>
                 {THEMES.map(t => (
                   <button key={t.id}
-                    style={{
-                      ...s.dropItem,
-                      ...(themeId === t.id ? s.dropItemActive : {}),
-                    }}
+                    style={{ ...s.dropItem, ...(themeId === t.id ? s.dropItemActive : {}) }}
                     onClick={() => { setTheme(t.id); setThemeOpen(false) }}
                   >
                     <div style={{ ...s.dropSwatch, background: SWATCH_BG[t.id] }} />
@@ -123,6 +136,14 @@ export default function Player() {
               </div>
             )}
           </div>
+
+          {/* Float overlay button */}
+          <button
+            style={{ ...s.floatBtn, ...(overlayOpen ? s.floatBtnActive : {}) }}
+            onClick={handleFloat}
+          >
+            {overlayOpen ? '✕ Close overlay' : '⬆ Float overlay'}
+          </button>
 
           {/* Disconnect */}
           <button style={s.disconnectBtn} onClick={() => { clearTokens(); navigate('/') }}>
@@ -143,12 +164,7 @@ export default function Player() {
           borderRadius: mode === 'pill' ? 22 : 14,
         }}>
           <ThemeBackground albumArt={albumArt} />
-
-          {/* Extra dark overlay for light themes so lyrics stay readable */}
-          {isLightTheme && (
-            <div style={s.lightThemeOverlay} />
-          )}
-
+          {isLightTheme && <div style={s.lightOverlay} />}
           <div style={s.blurLayer} />
           <div style={s.widgetInner}>
             <PlayerWidget
@@ -156,12 +172,22 @@ export default function Player() {
               progressMs={progressMs} durationMs={durationMs}
               isPlaying={isPlaying} trackId={trackId} connectionLost={connectionLost}
               currentLine={currentLine} prevLine={prevLine} nextLine={nextLine}
-              lyricsStatus={lyricsStatus}
-              mode={mode}
-              textDark={isLightTheme}
+              lyricsStatus={lyricsStatus} mode={mode} textDark={isLightTheme}
             />
           </div>
         </div>
+
+        {overlayOpen && (
+          <p style={s.overlayHint}>
+            Overlay is floating above your screen — drag it anywhere
+          </p>
+        )}
+
+        {!overlayOpen && (
+          <p style={s.overlayHint}>
+            Click "Float overlay" to pin WorkSing above all your apps
+          </p>
+        )}
 
       </div>
     </div>
@@ -178,25 +204,23 @@ const s = {
   modeBtns: { display: 'flex', gap: 4 },
   modeBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.12)', background: 'transparent', color: 'rgba(255,255,255,0.35)', cursor: 'pointer', textTransform: 'capitalize' },
   modeBtnActive: { background: 'rgba(29,158,117,0.15)', border: '0.5px solid #1D9E75', color: '#1D9E75' },
-
   dropWrap: { position: 'relative' },
   themeBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' },
   themeDot: { width: 12, height: 12, borderRadius: 3, flexShrink: 0 },
   caret: { fontSize: 8, opacity: 0.5 },
-
   dropdown: { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 180, background: '#16141a', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, overflow: 'hidden', zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' },
   dropItem: { width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: "'Inter',sans-serif", fontSize: 12, color: 'rgba(255,255,255,0.6)', textAlign: 'left' },
   dropItemActive: { background: 'rgba(29,158,117,0.12)', color: '#fff' },
   dropSwatch: { width: 20, height: 14, borderRadius: 4, flexShrink: 0 },
   checkmark: { marginLeft: 'auto', color: '#1D9E75', fontSize: 11 },
-
+  floatBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, padding: '5px 13px', borderRadius: 20, border: '0.5px solid rgba(29,158,117,0.5)', background: 'rgba(29,158,117,0.1)', color: '#1D9E75', cursor: 'pointer', transition: 'all 0.15s' },
+  floatBtnActive: { background: 'rgba(239,159,39,0.12)', border: '0.5px solid rgba(239,159,39,0.5)', color: '#EF9F27' },
   disconnectBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.25)', padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.08)', background: 'transparent', cursor: 'pointer' },
-
   stage: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   hint: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.15)' },
-
   widgetWrap: { position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' },
-  lightThemeOverlay: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1 },
+  lightOverlay: { position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 1 },
   blurLayer: { position: 'absolute', inset: 0, backdropFilter: 'blur(2px)', WebkitBackdropFilter: 'blur(2px)', zIndex: 2 },
   widgetInner: { position: 'absolute', inset: 0, zIndex: 3 },
+  overlayHint: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.2)', textAlign: 'center' },
 }
