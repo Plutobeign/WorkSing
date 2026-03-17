@@ -65,7 +65,7 @@ export default function Player() {
     return () => window.removeEventListener('keydown', onKey)
   }, [themeId, setTheme])
 
-  const nowPlaying = useNowPlaying(navigate)
+  const nowPlaying = useNowPlaying(navigate, overlayOpen)
   const { trackName, artistName, albumName, albumArt,
           progressMs, durationMs, isPlaying, trackId, connectionLost } = nowPlaying
 

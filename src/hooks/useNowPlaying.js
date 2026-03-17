@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { spotifyFetch, clearTokens } from '../utils/spotifyAuth'
 
-const POLL_NORMAL   = 1000   // ms — steady state
-const POLL_FAST     = 200    // ms — right after track change or reconnect
-const FAST_DURATION = 4000   // ms — how long to stay in fast mode
-const RETRY_DELAY   = 3000   // ms — retry when connection is lost
+const POLL_NORMAL    = 1000
+const POLL_FAST      = 200
+const FAST_DURATION  = 4000
+const RETRY_DELAY    = 3000
 
-export function useNowPlaying(navigate) {
+export function useNowPlaying(navigate, overlayOpen = false) {
   const [state, setState] = useState({
     trackName:      null,
     artistName:     null,
@@ -28,8 +28,13 @@ export function useNowPlaying(navigate) {
   const lastTrackIdRef  = useRef(null)
   const isPlayingRef    = useRef(false)
   const connLostRef     = useRef(false)
+  const overlayOpenRef  = useRef(overlayOpen)
 
-  // ── Enter fast polling mode ───────────────────────────────
+  // Keep overlayOpenRef in sync
+  useEffect(() => {
+    overlayOpenRef.current = overlayOpen
+  }, [overlayOpen])
+
   const enterFastMode = useCallback(() => {
     fastModeRef.current = true
     clearTimeout(fastModeTimer.current)
@@ -38,7 +43,6 @@ export function useNowPlaying(navigate) {
     }, FAST_DURATION)
   }, [])
 
-  // ── RAF smooth ticker ─────────────────────────────────────
   const stopTicker = useCallback(() => {
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current)
@@ -66,16 +70,11 @@ export function useNowPlaying(navigate) {
     rafRef.current = requestAnimationFrame(tick)
   }, [])
 
-  // ── API poll ──────────────────────────────────────────────
   const poll = useCallback(async () => {
     try {
       const res = await spotifyFetch('/me/player/currently-playing')
 
-      if (res.status === 401) {
-        clearTokens()
-        navigate('/')
-        return
-      }
+      if (res.status === 401) { clearTokens(); navigate('/'); return }
 
       if (res.status === 204) {
         stopTicker()
@@ -104,13 +103,11 @@ export function useNowPlaying(navigate) {
       const albumName  = track.album?.name ?? ''
       const albumArt   = track.album?.images?.[0]?.url ?? null
 
-      // Track changed — enter fast mode for snappy detection
       if (trackId !== lastTrackIdRef.current) {
         lastTrackIdRef.current = trackId
         enterFastMode()
       }
 
-      // Just recovered from connection loss — enter fast mode
       if (connLostRef.current) {
         connLostRef.current = false
         enterFastMode()
@@ -129,7 +126,6 @@ export function useNowPlaying(navigate) {
       else stopTicker()
 
     } catch {
-      // Network error
       if (!connLostRef.current) {
         connLostRef.current = true
         isPlayingRef.current = false
@@ -139,14 +135,11 @@ export function useNowPlaying(navigate) {
     }
   }, [navigate, startTicker, stopTicker, enterFastMode])
 
-  // ── Polling loop ──────────────────────────────────────────
   const schedulePoll = useCallback(() => {
     clearTimeout(pollTimerRef.current)
-
-    let interval
-    if (connLostRef.current)    interval = RETRY_DELAY
-    else if (fastModeRef.current) interval = POLL_FAST
-    else                          interval = POLL_NORMAL
+    const interval = connLostRef.current ? RETRY_DELAY
+      : fastModeRef.current ? POLL_FAST
+      : POLL_NORMAL
 
     pollTimerRef.current = setTimeout(async () => {
       if (!mountedRef.current) return
@@ -155,14 +148,15 @@ export function useNowPlaying(navigate) {
     }, interval)
   }, [poll])
 
-  // ── Visibility change ─────────────────────────────────────
+  // Visibility change — only pause if overlay is NOT open
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden) {
+      if (document.hidden && !overlayOpenRef.current) {
+        // Tab hidden and no overlay — pause to save API calls
         clearTimeout(pollTimerRef.current)
         stopTicker()
-      } else {
-        // Coming back to tab — enter fast mode immediately
+      } else if (!document.hidden) {
+        // Tab visible again — resume with fast mode
         enterFastMode()
         poll().then(schedulePoll)
       }
@@ -171,11 +165,17 @@ export function useNowPlaying(navigate) {
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [poll, schedulePoll, stopTicker, enterFastMode])
 
-  // ── Mount / unmount ───────────────────────────────────────
+  // When overlay opens while tab is hidden — restart polling immediately
+  useEffect(() => {
+    if (overlayOpen && document.hidden) {
+      enterFastMode()
+      poll().then(schedulePoll)
+    }
+  }, [overlayOpen, poll, schedulePoll, enterFastMode])
+
   useEffect(() => {
     mountedRef.current = true
     poll().then(schedulePoll)
-
     return () => {
       mountedRef.current = false
       clearTimeout(pollTimerRef.current)
