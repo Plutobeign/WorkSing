@@ -30,7 +30,6 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   const pct      = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
   const bg       = getThemeBg(themeId, albumColors)
   const isLight  = LIGHT_THEMES.has(themeId)
-  const br       = mode === 'pill' ? '22px' : '14px'
 
   const lyric = status === 'synced' ? (currentLine || '♪')
     : status === 'loading' ? 'Loading…'
@@ -45,10 +44,10 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
     : `<div style="width:26px;height:26px;border-radius:6px;background:rgba(255,255,255,0.1);flex-shrink:0"></div>`
 
   const darkOverlay = isLight
-    ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1;border-radius:${br}"></div>`
+    ? `<div style="position:absolute;inset:0;background:rgba(0,0,0,0.42);z-index:1;"></div>`
     : ''
 
-  const blurDiv = `<div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2;border-radius:${br}"></div>`
+  const blurDiv = `<div style="position:absolute;inset:0;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);z-index:2;"></div>`
 
   let content = ''
 
@@ -59,7 +58,7 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
         <span id="ws-lyric" style="flex:1;font-size:14px;font-weight:600;color:rgba(255,255,255,0.96);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-0.02em;text-shadow:0 1px 6px rgba(0,0,0,0.9);-webkit-font-smoothing:antialiased">${lyric}</span>
         <span style="font-size:10px;color:rgba(255,255,255,0.35);white-space:nowrap;flex-shrink:0">${artistName || ''}</span>
       </div>
-      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4;border-radius:0 0 22px 22px">
+      <div style="position:absolute;bottom:0;left:0;right:0;height:2px;background:rgba(255,255,255,0.08);z-index:4;">
         <div id="ws-prog" style="height:100%;width:${pct}%;background:rgba(255,255,255,0.5)"></div>
       </div>`
 
@@ -101,7 +100,7 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   }
 
   return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};border-radius:${br}"></div>
+    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};"></div>
     ${darkOverlay}
     ${blurDiv}
     ${content}
