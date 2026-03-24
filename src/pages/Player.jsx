@@ -67,7 +67,7 @@ export default function Player() {
   const { trackName, artistName, albumName, albumArt,
           progressMs, durationMs, isPlaying, trackId, connectionLost } = nowPlaying
 
-  const { lines, status: lyricsStatus } = useLyrics(trackName, artistName, albumName, trackId)
+  const { lines, status: lyricsStatus, source: lyricsSource } = useLyrics(trackName, artistName, albumName, trackId)
   const { prevLine, currentLine, nextLine } = useCurrentLine(lines, progressMs)
 
   const lyricsData      = { status: lyricsStatus }
