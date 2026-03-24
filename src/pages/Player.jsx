@@ -29,7 +29,7 @@ export default function Player() {
   const [mode, setMode]           = useState(() => localStorage.getItem('ws-mode') || 'full')
   const [themeOpen, setThemeOpen] = useState(false)
   const [overlayOpen, setOverlayOpen] = useState(false)
-  const [opacity, setOpacity]     = useState(() => Number(localStorage.getItem('ws-opacity') || 88))
+  const [opacity, setOpacity]     = useState(() => Number(localStorage.getItem('ws-opacity') || 0))
   const [opacityOpen, setOpacityOpen] = useState(false)
   const dropdownRef  = useRef(null)
   const opacityRef   = useRef(null)
@@ -143,16 +143,16 @@ export default function Player() {
           {/* Opacity control */}
           <div style={s.dropWrap} ref={opacityRef}>
             <button style={s.opacityBtn} onClick={() => setOpacityOpen(o => !o)}>
-              <span>Opacity {opacity}%</span>
+              <span>Transparency {opacity}%</span>
               <span style={s.caret}>{opacityOpen ? '▲' : '▼'}</span>
             </button>
             {opacityOpen && (
               <div style={s.opacityPanel}>
-                <p style={s.opacityLabel}>Overlay background opacity</p>
+                <p style={s.opacityLabel}>0% = full theme · 100% = see-through</p>
                 <div style={s.sliderRow}>
                   <span style={s.sliderHint}>Transparent</span>
                   <input
-                    type="range" min="20" max="98" step="1"
+                    type="range" min="0" max="100" step="1"
                     value={opacity}
                     onChange={e => handleOpacity(Number(e.target.value))}
                     style={s.slider}

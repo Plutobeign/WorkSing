@@ -30,7 +30,7 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   const pct      = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
   const bg       = getThemeBg(themeId, albumColors)
   const isLight  = LIGHT_THEMES.has(themeId)
-  const bgOpacity = (opacity ?? 88) / 100
+  const bgOpacity = 1 - ((opacity ?? 0) / 100)
   const br       = mode === 'pill' ? '22px' : '14px'
 
   const lyric = status === 'synced' ? (currentLine || '♪')
@@ -109,7 +109,7 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   `
 }
 
-export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, opacity = 88) {
+export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, opacity = 0) {
   const pipRef     = useRef(null)
   const payloadRef = useRef({})
   const { themeId, albumColors } = useTheme()
@@ -172,7 +172,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
     const bgEl = pip.document.getElementById('ws-bg')
     if (bgEl) {
       bgEl.style.background = getThemeBg(p.themeId, p.albumColors)
-      bgEl.style.opacity = String((p.opacity ?? 88) / 100)
+      bgEl.style.opacity = String(1 - ((p.opacity ?? 0) / 100))
     }
 
     // Album art
