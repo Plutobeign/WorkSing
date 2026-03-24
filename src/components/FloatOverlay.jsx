@@ -30,7 +30,6 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   const pct      = durationMs > 0 ? Math.min((progressMs / durationMs) * 100, 100) : 0
   const bg       = getThemeBg(themeId, albumColors)
   const isLight  = LIGHT_THEMES.has(themeId)
-  const bgOpacity = 1 - ((opacity ?? 0) / 100)
   const br       = mode === 'pill' ? '22px' : '14px'
 
   const lyric = status === 'synced' ? (currentLine || '♪')
@@ -102,14 +101,14 @@ function buildHTML({ currentLine, prevLine, nextLine, trackName, artistName,
   }
 
   return `
-    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};opacity:${bgOpacity};border-radius:${br}"></div>
+    <div id="ws-bg" style="position:absolute;inset:0;background:${bg};border-radius:${br}"></div>
     ${darkOverlay}
     ${blurDiv}
     ${content}
   `
 }
 
-export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, opacity = 0) {
+export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode) {
   const pipRef     = useRef(null)
   const payloadRef = useRef({})
   const { themeId, albumColors } = useTheme()
@@ -126,7 +125,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
       progressMs:   nowPlaying.progressMs,
       durationMs:   nowPlaying.durationMs,
       status:       lyricsData.status,
-      mode, themeId, albumColors, opacity,
+      mode, themeId, albumColors,
     }
   })
 
@@ -172,7 +171,6 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
     const bgEl = pip.document.getElementById('ws-bg')
     if (bgEl) {
       bgEl.style.background = getThemeBg(p.themeId, p.albumColors)
-      bgEl.style.opacity = String(1 - ((p.opacity ?? 0) / 100))
     }
 
     // Album art
@@ -187,7 +185,7 @@ export function useFloatOverlay(nowPlaying, lyricsData, currentLineData, mode, o
     nowPlaying.trackName,
     nowPlaying.albumArt,
     lyricsData.status,
-    themeId, albumColors, opacity,
+    themeId, albumColors,
   ])
 
   const openOverlay = useCallback(async () => {

@@ -29,18 +29,14 @@ export default function Player() {
   const [mode, setMode]           = useState(() => localStorage.getItem('ws-mode') || 'full')
   const [themeOpen, setThemeOpen] = useState(false)
   const [overlayOpen, setOverlayOpen] = useState(false)
-  const [opacity, setOpacity]     = useState(() => Number(localStorage.getItem('ws-opacity') || 0))
-  const [opacityOpen, setOpacityOpen] = useState(false)
-  const dropdownRef  = useRef(null)
-  const opacityRef   = useRef(null)
+  const dropdownRef = useRef(null)
 
   useEffect(() => { if (!isLoggedIn()) navigate('/') }, [navigate])
 
-  // Close dropdowns on outside click
+  // Close dropdown on outside click
   useEffect(() => {
     const h = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) setThemeOpen(false)
-      if (opacityRef.current && !opacityRef.current.contains(e.target)) setOpacityOpen(false)
     }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
@@ -78,7 +74,7 @@ export default function Player() {
   const currentLineData = { currentLine, prevLine, nextLine }
 
   const { openOverlay, closeOverlay, isOpen } = useFloatOverlay(
-    nowPlaying, lyricsData, currentLineData, mode, opacity
+    nowPlaying, lyricsData, currentLineData, mode
   )
 
   const handleFloat = useCallback(() => {
@@ -86,19 +82,13 @@ export default function Player() {
     else { openOverlay(); setOverlayOpen(true) }
   }, [isOpen, openOverlay, closeOverlay])
 
-  // Push opacity changes to open overlay
-  const handleOpacity = (val) => {
-    setOpacity(val)
-    localStorage.setItem('ws-opacity', val)
-  }
-
   const size = MODE_SIZES[mode]
   const isLightTheme = activeTheme?.textDark
 
   return (
     <div style={s.page}>
 
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={s.header}>
         <div style={s.logoRow}>
           <div style={s.logoDot} />
@@ -140,37 +130,6 @@ export default function Player() {
             )}
           </div>
 
-          {/* Opacity control */}
-          <div style={s.dropWrap} ref={opacityRef}>
-            <button style={s.opacityBtn} onClick={() => setOpacityOpen(o => !o)}>
-              <span>Transparency {opacity}%</span>
-              <span style={s.caret}>{opacityOpen ? '▲' : '▼'}</span>
-            </button>
-            {opacityOpen && (
-              <div style={s.opacityPanel}>
-                <p style={s.opacityLabel}>0% = full theme · 100% = see-through</p>
-                <div style={s.sliderRow}>
-                  <span style={s.sliderHint}>Transparent</span>
-                  <input
-                    type="range" min="0" max="100" step="1"
-                    value={opacity}
-                    onChange={e => handleOpacity(Number(e.target.value))}
-                    style={s.slider}
-                  />
-                  <span style={s.sliderHint}>Solid</span>
-                </div>
-                <div style={s.opacityPreview}>
-                  <div style={{
-                    ...s.opacityDot,
-                    opacity: opacity / 100,
-                    background: SWATCH_BG[themeId],
-                  }} />
-                  <span style={s.opacityValue}>{opacity}%</span>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Float button */}
           <button
             style={{ ...s.floatBtn, ...(overlayOpen ? s.floatBtnActive : {}) }}
@@ -187,7 +146,7 @@ export default function Player() {
         </div>
       </div>
 
-      {/* ── Stage ── */}
+      {/* Stage */}
       <div style={s.stage}>
         <p style={s.hint}>Ctrl+Alt+W — mode &nbsp;·&nbsp; Ctrl+Alt+T — theme</p>
 
@@ -240,21 +199,9 @@ const s = {
   dropItemActive: { background: 'rgba(29,158,117,0.12)', color: '#fff' },
   dropSwatch: { width: 20, height: 14, borderRadius: 4, flexShrink: 0 },
   checkmark: { marginLeft: 'auto', color: '#1D9E75', fontSize: 11 },
-
-  opacityBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.7)', cursor: 'pointer' },
-  opacityPanel: { position: 'absolute', top: 'calc(100% + 6px)', right: 0, width: 220, background: '#16141a', border: '0.5px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '12px 14px', zIndex: 100, boxShadow: '0 8px 32px rgba(0,0,0,0.6)' },
-  opacityLabel: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 10 },
-  sliderRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 },
-  sliderHint: { fontFamily: "'Inter',sans-serif", fontSize: 10, color: 'rgba(255,255,255,0.25)', flexShrink: 0 },
-  slider: { flex: 1, accentColor: '#1D9E75', cursor: 'pointer' },
-  opacityPreview: { display: 'flex', alignItems: 'center', gap: 8 },
-  opacityDot: { width: 32, height: 18, borderRadius: 4, transition: 'opacity 0.1s' },
-  opacityValue: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.5)' },
-
   floatBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, padding: '5px 13px', borderRadius: 20, border: '0.5px solid rgba(29,158,117,0.5)', background: 'rgba(29,158,117,0.1)', color: '#1D9E75', cursor: 'pointer', transition: 'all 0.15s' },
   floatBtnActive: { background: 'rgba(239,159,39,0.12)', border: '0.5px solid rgba(239,159,39,0.5)', color: '#EF9F27' },
   disconnectBtn: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.25)', padding: '4px 11px', borderRadius: 20, border: '0.5px solid rgba(255,255,255,0.08)', background: 'transparent', cursor: 'pointer' },
-
   stage: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 32, gap: 16 },
   hint: { fontFamily: "'Inter',sans-serif", fontSize: 11, color: 'rgba(255,255,255,0.15)' },
   widgetWrap: { position: 'relative', overflow: 'hidden', transition: 'all 0.3s ease', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' },
