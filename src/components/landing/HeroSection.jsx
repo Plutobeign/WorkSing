@@ -1,11 +1,10 @@
 import { motion } from 'framer-motion'
-import { Mic } from 'lucide-react'
+import { MicVocal } from 'lucide-react'
 import { redirectToSpotifyLogin } from '../../utils/spotifyAuth'
 
 export default function HeroSection() {
   return (
     <section style={s.section}>
-      {/* Radial glow */}
       <div style={s.glow} />
 
       <motion.div
@@ -14,7 +13,7 @@ export default function HeroSection() {
         transition={{ duration: 0.8, ease: 'easeOut' }}
         style={s.inner}
       >
-        {/* Mic icon */}
+        {/* Icon */}
         <motion.div
           style={s.iconWrap}
           initial={{ scale: 0 }}
@@ -22,7 +21,7 @@ export default function HeroSection() {
           transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
         >
           <div style={s.iconBox}>
-            <Mic size={28} color='#1D9E75' />
+            <MicVocal size={28} color='#1D9E75' />
           </div>
           <div style={s.iconGlow} />
         </motion.div>
@@ -33,16 +32,18 @@ export default function HeroSection() {
         </h1>
 
         <p style={s.tagline}>
-          Karaoke mode for people who work. See real-time lyrics overlay while you code, design, or browse.
+          Karaoke mode while you work. See realtime lyrics overlay while you code, design, or browse.
         </p>
 
-        {/* CTA Button */}
+        {/* CTA */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <button style={s.btn} onClick={redirectToSpotifyLogin}
+          <button
+            style={s.btn}
+            onClick={redirectToSpotifyLogin}
             onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.03)'}
             onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
           >
@@ -60,13 +61,15 @@ export default function HeroSection() {
           transition={{ delay: 0.8 }}
           style={s.badges}
         >
-          {['Free forever', 'No backend', 'Chrome overlay'].map((label, i) => (
-            <span key={label} style={s.badgeGroup}>
-              {i > 0 && <span style={s.divider} />}
-              <span style={s.badgeDot} />
-              <span style={s.badgeText}>{label}</span>
-            </span>
-          ))}
+          <span style={s.badgeGroup}>
+            <span style={s.badgeDot} />
+            <span style={s.badgeText}>Free</span>
+          </span>
+          <span style={s.divider} />
+          <span style={s.badgeGroup}>
+            <span style={s.badgeDot} />
+            <span style={s.badgeText}>Only on Chrome on Desktop</span>
+          </span>
         </motion.div>
       </motion.div>
     </section>
@@ -80,11 +83,11 @@ const s = {
   iconWrap: { position: 'relative', marginBottom: 24 },
   iconBox: { width: 56, height: 56, borderRadius: 16, background: 'rgba(29,158,117,0.12)', border: '1px solid rgba(29,158,117,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   iconGlow: { position: 'absolute', inset: -8, borderRadius: 24, background: 'rgba(29,158,117,0.05)', zIndex: -1 },
-  h1: { fontSize: 'clamp(48px,8vw,72px)', fontWeight: 700, letterSpacing: '-0.04em', fontFamily: "'Outfit','Inter',sans-serif", lineHeight: 1, marginBottom: 16 },
+  h1: { fontSize: 'clamp(56px,10vw,96px)', fontWeight: 800, letterSpacing: '-0.04em', fontFamily: "'Outfit','Inter',sans-serif", lineHeight: 1, marginBottom: 16 },
   gradient: { background: 'linear-gradient(135deg, #1D9E75, rgba(29,158,117,0.65))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' },
   tagline: { fontSize: 18, color: 'rgba(255,255,255,0.55)', marginBottom: 32, maxWidth: 420, lineHeight: 1.65, fontFamily: "'Space Grotesk','Inter',sans-serif" },
   btn: { display: 'inline-flex', alignItems: 'center', gap: 10, padding: '16px 40px', borderRadius: 50, background: '#1D9E75', color: '#fff', fontSize: 17, fontWeight: 600, fontFamily: "'Inter',sans-serif", border: 'none', cursor: 'pointer', transition: 'transform 0.15s', marginBottom: 24 },
-  badges: { display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'center' },
+  badges: { display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', justifyContent: 'center' },
   badgeGroup: { display: 'flex', alignItems: 'center', gap: 6 },
   divider: { width: 1, height: 12, background: 'rgba(255,255,255,0.15)', display: 'inline-block' },
   badgeDot: { width: 6, height: 6, borderRadius: '50%', background: '#1D9E75', display: 'inline-block' },
